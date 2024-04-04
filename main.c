@@ -1,18 +1,61 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-// GUITAR IMAGE ARRAY
+#define KEYS_BASE 0xFF200050
+#define AUDIO_BASE 0xFF203040
+#define LED_BASE 0xFF200000
+
+// GLOBALS
 extern const uint16_t guitar[162][85];
 extern const uint16_t triangle[15][15];
+const int strings[6] = {1, 2, 3, 4, 5, 6};  //{E, A, D, G, B, high E} strings
+int stringState = -1;
 
-/******************** PUSHBUTTONS.H ********************/
-/******************** PUSHBUTTONS.H ********************/
-/******************** PUSHBUTTONS.H ********************/
+// Forward declaration of functions
+void setupKeys();
+void clearKeyEdgeCapture();
+void setupAudio();
+void setupProcessorForInterrupts();
+void interrupt_handler();
+void write_pixel(int x, int y, short colour);
+void draw_vertical_line(int x, int higherYValue, int lowerYValue, short colour);
+void clear_screen();
+void write_char(int x, int y, char c);
+void drawGuitar();
+void drawScale();
+void drawArrow();
+void drawNoteOnScale(float frequencyRecorded);
 
-#ifndef PUSHBUTTONS_H
-#define PUSHBUTTONS_H
+/*****************************************************************************/
+/* MAIN */
+/*****************************************************************************/
 
-#define KEYS_BASE 0xFF200050
+int main(void) {
+  /******************** SET UP ********************/
+  setupKeys();   // clears edge capture register and enables interrupts from all
+                 // buttons
+  setupAudio();  // clears input and output FIFOs for both channels
+  setupProcessorForInterrupts();  // enables the processor to be interrupted and
+                                  // enables buttons to interrupt
+  clear_screen();
+
+  drawGuitar();
+
+  drawScale();
+  drawArrow();
+
+  stringState = strings[0];  // stringState = 1 (high E string)
+
+  while (1) {
+    // LEDptr->onoff = *((volatile unsigned long int*) (0xFF200040));
+  }
+
+  return 0;
+}
+
+/*****************************************************************************/
+/* PUSHBUTTONS */
+/*****************************************************************************/
 
 struct pushbuttonStruct {
   volatile unsigned long int data;
@@ -37,16 +80,9 @@ void clearKeyEdgeCapture() {
   buttonptr->edgeCapture = 0b1111;
 }
 
-#endif  // PUSHBUTTONS
-
-/******************** AUDIOCORE.H ********************/
-/******************** AUDIOCORE.H ********************/
-/******************** AUDIOCORE.H ********************/
-
-#ifndef AUDIOCORE_H
-#define AUDIOCORE_H
-
-#define AUDIO_BASE 0xFF203040
+/*****************************************************************************/
+/* AUDIOCORE */
+/*****************************************************************************/
 
 struct audioCoreStruct {
   // Control Register
@@ -85,16 +121,9 @@ void setupAudio() {
   audioptr->control = 0x0;  // resume
 }
 
-#endif  // AUDIOCORE_H
-
-/******************** LEDs ********************/
-/******************** LEDs ********************/
-/******************** LEDs ********************/
-
-#ifndef LED_H
-#define LED_H
-
-#define LED_BASE 0xFF200000
+/*****************************************************************************/
+/* LEDS */
+/*****************************************************************************/
 
 struct LEDstruct {
   volatile unsigned long int onoff;
@@ -102,17 +131,6 @@ struct LEDstruct {
 
 struct LEDstruct *LEDptr = (struct LEDstruct *)LED_BASE;
 
-#endif  // LED_H
-
-/******************** ACCESS NIOS2 STATUS AND CONTROL REGISTERS
- * ********************/
-/******************** ACCESS NIOS2 STATUS AND CONTROL REGISTERS
- * ********************/
-/******************** ACCESS NIOS2 STATUS AND CONTROL REGISTERS
- * ********************/
-
-#ifndef __NIOS2_CTRL_REG_MACROS__
-#define __NIOS2_CTRL_REG_MACROS__
 /*****************************************************************************/
 /* Macros for accessing the control registers. */
 /*****************************************************************************/
@@ -163,11 +181,9 @@ void setupProcessorForInterrupts() {
       0b1);  // enables processor to be interrupted by setting PIE bit to 1
 }
 
-#endif  // NIOS2 CONTROL AND STATUS MACROS
-
-/******************** EXCEPTION FUNCTION ********************/
-/******************** EXCEPTION FUNCTION ********************/
-/******************** EXCEPTION FUNCTION ********************/
+/*****************************************************************************/
+/* EXCEPTION FUNCTION */
+/*****************************************************************************/
 
 /*
 The assembly language code below handles CPU exception
@@ -255,9 +271,9 @@ void the_exception() {
   asm("eret");
 }
 
-/******************** INTERRUPT HANDLER ********************/
-/******************** INTERRUPT HANDLER ********************/
-/******************** INTERRUPT HANDLER ********************/
+/*****************************************************************************/
+/* INTERRUPT HANDLER */
+/*****************************************************************************/
 
 void interrupt_handler() {
   if (__builtin_rdctl(4) == 0b10) {
@@ -274,9 +290,9 @@ void interrupt_handler() {
   }
 }
 
-/******************** VGA ********************/
-/******************** VGA ********************/
-/******************** VGA ********************/
+/*****************************************************************************/
+/* VGA */
+/*****************************************************************************/
 /* set a single pixel on the screen at x,y
  * x in [0,319], y in [0,239], and colour in [0,65535]
  */
@@ -319,7 +335,10 @@ void write_char(int x, int y, char c) {
 void drawGuitar() {
   for (int x = 0; x < 85; ++x) {
     for (int y = 0; y < 162; ++y) {
-      write_pixel(x + 117, y + 78, guitar[y][x]);
+      write_pixel(x + 117, y + 78,
+                  guitar[y][x]);  // Guitar png is of certain size. The x + 117
+                                  // and y + 78 are chosen so that the bottom
+                                  // screen is the bottom pixels of the guitar
     }
   }
 }
@@ -328,7 +347,10 @@ void drawGuitar() {
 void drawScale() {
   for (int lineNumber = 0; lineNumber < 23; ++lineNumber) {
     if (lineNumber == 0 || lineNumber == 11 || lineNumber == 22) {
-      draw_vertical_line(lineNumber * 10 + 49, 10, 50, 0x0);
+      draw_vertical_line(
+          lineNumber * 10 + 49, 10, 50,
+          0x0);  // lines are spaced 10 pixels apart, starting at x = 49. Lines
+                 // are drawn from y = 10 to y = 50 and are 0x0 (black)
     } else {
       draw_vertical_line(lineNumber * 10 + 49, 25, 35, 0x0);
     }
@@ -344,32 +366,12 @@ void drawArrow() {
   }
 }
 
-/******************** MAIN.CPP ********************/
-/******************** MAIN.CPP ********************/
-/******************** MAIN.CPP ********************/
-
-int main(void) {
-  /******************** SET UP ********************/
-  setupKeys();   // clears edge capture register and enables interrupts from all
-                 // buttons
-  setupAudio();  // clears input and output FIFOs for both channels
-  setupProcessorForInterrupts();  // enables the processor to be interrupted and
-                                  // enables buttons to interrupt
-  clear_screen();
-
-  drawGuitar();
-
-  drawScale();
-  drawArrow();
-
-  while (1) {
-    // LEDptr->onoff = *((volatile unsigned long int*) (0xFF200040));
-  }
-
-  return 0;
+// draws a line on the scale that represents the frequency of the note recorded
+void drawNoteOnScale(float frequencyRecorded) {
+  // draw_vertical_line(49 + );  //line is drawn starting at x = 49
 }
 
-// Draws triangle
+// Draws triangle to display to user which string is currently selected for tuning
 // 15 x 15
 const uint16_t triangle[15][15] = {
     0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff,
