@@ -46,7 +46,7 @@ int main(void) {
 
   stringState = strings[0];  // stringState = 1 (high E string)
 
-  drawNoteOnScale(100.00, 50.0);
+  drawNoteOnScale(50.0, 50.0);
 
   while (1) {
     // LEDptr->onoff = *((volatile unsigned long int*) (0xFF200040));
@@ -320,7 +320,7 @@ void clear_screen() {
   int x, y;
   for (x = 0; x < 320; x++) {
     for (y = 0; y < 240; y++) {
-      write_pixel(x, y, 0xFFFF);
+      write_pixel(x, y, 0x0);
     }
   }
 }
@@ -332,6 +332,14 @@ void write_char(int x, int y, char c) {
   // VGA character buffer
   volatile char *character_buffer = (char *)(0x09000000 + (y << 7) + x);
   *character_buffer = c;
+}
+
+void write_phrase(int x, int y, char *phrase) {
+  while (*phrase) {
+    write_char(x, y, *phrase);
+    phrase++;
+    x++;
+  }
 }
 
 void drawGuitar() {
@@ -351,10 +359,10 @@ void drawScale() {
     if (lineNumber == 0 || lineNumber == 11 || lineNumber == 22) {
       draw_vertical_line(
           lineNumber * 10 + 49, 10, 50,
-          0x0);  // lines are spaced 10 pixels apart, starting at x = 49. Lines
-                 // are drawn from y = 10 to y = 50 and are 0x0 (black)
+          0xFFFF);  // lines are spaced 10 pixels apart, starting at x = 49.
+                    // Lines are drawn from y = 10 to y = 50 and are 0x0 (black)
     } else {
-      draw_vertical_line(lineNumber * 10 + 49, 25, 35, 0x0);
+      draw_vertical_line(lineNumber * 10 + 49, 25, 35, 0xFFFF);
     }
   }
 }
@@ -374,19 +382,45 @@ void drawNoteOnScale(float frequencyRecorded, float expectedFrequency) {
   int colour = 0xF81F;  // initialized as purple for debugging
   int sign = (difference_in_frequency < 0) ? -1 : 1;
 
-  if (abs(difference_in_frequency) < 16) {
-    colour = 0x00FF00;
-  } else if (abs(difference_in_frequency) < 50) {
-    colour = 0xFFFF00;
-  } else {
-    colour = 0xFF0000;
-    if (abs(difference_in_frequency) > 110) {
+  int absDifference = abs(difference_in_frequency);
+  char *tuningInstructions = "hello world";
+
+  // if difference within 16 Hz, line drawn on scale is green
+  if (absDifference < 16) {
+    colour = 0x07E0;  // hexadecimal for green
+
+    // if difference is less than 8 Hz, then difference is barely perceptible
+    if (absDifference < 8) {
+      // print "Good!"
+      write_phrase(38, 18, tuningInstructions);
+    }
+    // if difference is greater than 8 Hz, but less than 16 Hz, tell which
+    // direction to tune
+    else {
+      // print tune in whatever direction
+      if (sign > 0) {
+        write_phrase(38, 18, tuningInstructions);
+      } else {
+        write_phrase(38, 18, tuningInstructions);
+      }
+    }
+  }
+  // else if, difference is within 50 Hz
+  else if (absDifference < 50) {
+    colour = 0xFFC0;  // hex for yellow
+  }
+  // if difference greater than 50 Hz, set colour to red
+  else {
+    colour = 0xF800;  // hex for red
+    // else, difference is greater than 110, set the difference to 110 so that
+    // line is drawn within the scale
+    if (absDifference > 110) {
       difference_in_frequency = sign * 110;
     }
   }
 
   draw_vertical_line(159 + difference_in_frequency, 10, 50,
-                     0xF800);  // line is drawn starting at x = 159 (the
+                     colour);  // line is drawn starting at x = 159 (the
                                // middle of the scale) in red
 }
 
