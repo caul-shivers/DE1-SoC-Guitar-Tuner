@@ -38,6 +38,7 @@ int main(void) {
   setupProcessorForInterrupts();  // enables the processor to be interrupted and
                                   // enables buttons to interrupt
   clear_screen();
+  clear_character_buffer();
 
   drawGuitar();
 
@@ -334,11 +335,20 @@ void write_char(int x, int y, char c) {
   *character_buffer = c;
 }
 
+void clear_character_buffer() {
+  for (int x = 0; x < 80; ++x) {
+    for (int y = 0; y < 60; ++y) {
+      volatile char *character_buffer = (char *)(0x09000000 + (y << 7) + x);
+      *character_buffer = 0;
+    }
+  }
+}
+
 void write_phrase(int x, int y, char *phrase) {
   while (*phrase) {
     write_char(x, y, *phrase);
-    phrase++;
-    x++;
+    ++phrase;
+    ++x;
   }
 }
 
@@ -383,7 +393,7 @@ void drawNoteOnScale(float frequencyRecorded, float expectedFrequency) {
   int sign = (difference_in_frequency < 0) ? -1 : 1;
 
   int absDifference = abs(difference_in_frequency);
-  char *tuningInstructions = "hello world";
+  char *tuningInstructions;
 
   // if difference within 16 Hz, line drawn on scale is green
   if (absDifference < 16) {
@@ -392,22 +402,38 @@ void drawNoteOnScale(float frequencyRecorded, float expectedFrequency) {
     // if difference is less than 8 Hz, then difference is barely perceptible
     if (absDifference < 8) {
       // print "Good!"
-      write_phrase(38, 18, tuningInstructions);
+      clear_character_buffer();
+      tuningInstructions = "Good!";
+      write_phrase(37, 16, tuningInstructions);
     }
     // if difference is greater than 8 Hz, but less than 16 Hz, tell which
     // direction to tune
     else {
       // print tune in whatever direction
       if (sign > 0) {
-        write_phrase(38, 18, tuningInstructions);
+        clear_character_buffer();
+        tuningInstructions = "Tune down";
+        write_phrase(36, 16, tuningInstructions);
       } else {
-        write_phrase(38, 18, tuningInstructions);
+        clear_character_buffer();
+        tuningInstructions = "Tune up";
+        write_phrase(37, 16, tuningInstructions);
       }
     }
   }
   // else if, difference is within 50 Hz
   else if (absDifference < 50) {
     colour = 0xFFC0;  // hex for yellow
+    // print tune in whatever direction
+    if (sign > 0) {
+      clear_character_buffer();
+      tuningInstructions = "Tune down";
+      write_phrase(36, 16, tuningInstructions);
+    } else {
+      clear_character_buffer();
+      tuningInstructions = "Tune up";
+      write_phrase(37, 16, tuningInstructions);
+    }
   }
   // if difference greater than 50 Hz, set colour to red
   else {
@@ -416,6 +442,16 @@ void drawNoteOnScale(float frequencyRecorded, float expectedFrequency) {
     // line is drawn within the scale
     if (absDifference > 110) {
       difference_in_frequency = sign * 110;
+    }
+    // print tune in whatever direction
+    if (sign > 0) {
+      clear_character_buffer();
+      tuningInstructions = "Tune down";
+      write_phrase(36, 16, tuningInstructions);
+    } else {
+      clear_character_buffer();
+      tuningInstructions = "Tune up";
+      write_phrase(37, 16, tuningInstructions);
     }
   }
 
