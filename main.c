@@ -1,15 +1,26 @@
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 
 #define KEYS_BASE 0xFF200050
 #define AUDIO_BASE 0xFF203040
 #define LED_BASE 0xFF200000
 
-// GLOBALS
+/*****************************************************************************/
+/* GLOBALS */
+/*****************************************************************************/  // Define states for different guitar strings
+enum GuitarString {
+  E_STRING,
+  A_STRING,
+  D_STRING,
+  G_STRING,
+  B_STRING,
+  HIGH_E_STRING
+};
 extern const uint16_t guitar[162][85];
 extern const uint16_t triangle[15][15];
-const int strings[6] = {1, 2, 3, 4, 5, 6};  //{E, A, D, G, B, high E} strings
-int stringState = -1;
+enum GuitarString stringState =
+    E_STRING;  // Initialize string state to E_STRING
 
 // Forward declaration of functions
 void setupKeys();
@@ -45,8 +56,6 @@ int main(void) {
 
   drawScale();
   drawArrow();
-
-  stringState = strings[0];  // stringState = 1 (high E string)
 
   drawNoteOnScale(50.0, 50.0);
 
@@ -91,17 +100,6 @@ void clearKeyEdgeCapture() {
 struct audioCoreStruct {
   // Control Register
   volatile unsigned long int control;
-  /*
-    CONTROL REGISTER COMPONENTS
-    Bit Name Description
-    0 RE Read Interrupt enable
-    1 WE Write Interrupt enable
-    2 CR Clear both left and right read FIFOs
-    3 CW Clear both left and right write FIFOs
-    8 RI Indicates that a read interrupt is pending
-    9 WI Indicates that a write interrupt is pending
-
-  */
 
   // FIFO SPACE REGISTER
   volatile unsigned char rarc;  // read available, right channel
@@ -281,16 +279,30 @@ void the_exception() {
 
 void interrupt_handler() {
   if (__builtin_rdctl(4) == 0b10) {
-    if (LEDptr->onoff == 0b1111111111) {
-      LEDptr->onoff = 0;
-      clearKeyEdgeCapture();
-    } else {
-      LEDptr->onoff = 0b1111111111;
-      clearKeyEdgeCapture();
+    // if (LEDptr->onoff == 0b1111111111) {
+    //   LEDptr->onoff = 0;
+    //   clearKeyEdgeCapture();
+    // } else {
+    //   LEDptr->onoff = 0b1111111111;
+    //   clearKeyEdgeCapture();
+    // }
+    if (buttonptr->edgeCapture & 0b1) {
+      // Cycle forward through string states
+      stringState++;
+      if (stringState > 5) {
+        stringState = 0;  // Wrap around to the first string state
+      }
+    } else if (buttonptr->edgeCapture & 0b10) {
+      // Cycle backward through string states
+      if (stringState == 0) {  // if stringState == 0, wrap around to 5
+        stringState = 5;
+      } else {
+        stringState--;
+      }
     }
 
-    // LEDptr->onoff = 0b1111111111;
-    // clearKeyEdgeCapture();
+    printf("string state: %d\n", stringState);
+    clearKeyEdgeCapture();
   }
 }
 
