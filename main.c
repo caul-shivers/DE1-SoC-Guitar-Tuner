@@ -24,7 +24,7 @@ void write_char(int x, int y, char c);
 void drawGuitar();
 void drawScale();
 void drawArrow();
-void drawNoteOnScale(float frequencyRecorded);
+void drawNoteOnScale(float frequencyRecorded, float expectedFrequency);
 
 /*****************************************************************************/
 /* MAIN */
@@ -45,6 +45,8 @@ int main(void) {
   drawArrow();
 
   stringState = strings[0];  // stringState = 1 (high E string)
+
+  drawNoteOnScale(100.00, 50.0);
 
   while (1) {
     // LEDptr->onoff = *((volatile unsigned long int*) (0xFF200040));
@@ -367,12 +369,29 @@ void drawArrow() {
 }
 
 // draws a line on the scale that represents the frequency of the note recorded
-void drawNoteOnScale(float frequencyRecorded) {
-  // draw_vertical_line(49 + );  //line is drawn starting at x = 49
+void drawNoteOnScale(float frequencyRecorded, float expectedFrequency) {
+  int difference_in_frequency = (int)(frequencyRecorded - expectedFrequency);
+  int colour = 0xF81F;  // initialized as purple for debugging
+  int sign = (difference_in_frequency < 0) ? -1 : 1;
+
+  if (abs(difference_in_frequency) < 16) {
+    colour = 0x00FF00;
+  } else if (abs(difference_in_frequency) < 50) {
+    colour = 0xFFFF00;
+  } else {
+    colour = 0xFF0000;
+    if (abs(difference_in_frequency) > 110) {
+      difference_in_frequency = sign * 110;
+    }
+  }
+
+  draw_vertical_line(159 + difference_in_frequency, 10, 50,
+                     0xF800);  // line is drawn starting at x = 159 (the
+                               // middle of the scale) in red
 }
 
-// Draws triangle to display to user which string is currently selected for tuning
-// 15 x 15
+// Draws triangle to display to user which string is currently selected for
+// tuning 15 x 15
 const uint16_t triangle[15][15] = {
     0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff,
     0xffff, 0xffff, 0xe73c, 0xad96, 0x94d3, 0xffdf, 0xffff, 0xffff, 0xffff,
