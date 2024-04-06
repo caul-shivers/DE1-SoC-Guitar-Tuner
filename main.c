@@ -23,18 +23,21 @@
 /* GLOBALS */
 /*****************************************************************************/  // Define states for different guitar strings
 float frequencyOfString = -1;
-float expectedFrequencyForString = E2;
+float expectedFrequencyForString = D3;
 
 enum GuitarString {
-  E_STRING,
-  A_STRING,
   D_STRING,
+  A_STRING,
+  E_STRING,
   G_STRING,
   B_STRING,
   HIGH_E_STRING
 };
+
+float guitarStringFrequencies[6] = {D3, A2, E2, G3, B3, E4};
+
 enum GuitarString stringState =
-    G_STRING;  // Initialize string state to E_STRING
+    D_STRING;  // Initialize string state to E_STRING
 
 // Forward declaration of guitar and triangle (arrow) image arrays
 extern const uint16_t guitar[162][85];
@@ -328,7 +331,13 @@ void interrupt_handler() {
       }
     }
 
-    printf("string state: %d\n", stringState);
+    // assign expectedFrequencyForString the frequency expected for string
+    // selected via pushbuttons 0 and 1
+    expectedFrequencyForString = guitarStringFrequencies[stringState];
+
+    printf("expected frequency for string state: %d: %f\n", stringState,
+           expectedFrequencyForString);
+
     clearKeyEdgeCapture();
     clearArrows();
     drawArrow();
@@ -428,8 +437,10 @@ void drawBox(int x1, int x2, int y1, int y2, short colour) {
 };
 
 void clearArrows() {
-  // draws black box
-  drawBox(210, 240, 90, 200, 0x0);
+  // draws black box over the left and right sides of the guitar where the
+  // arrows would be drawn
+  drawBox(208, 235, 90, 200, 0x0);
+  drawBox(95, 110, 90, 200, 0x0);
 }
 
 // draws the arrow that shows what string is selected for tuning
@@ -439,21 +450,21 @@ void drawArrow() {
     if (stringState == HIGH_E_STRING) {
       for (int x = 0; x < 15; ++x) {
         for (int y = 0; y < 15; ++y) {
-          write_pixel(x + 210, y + 151, triangle[y][x]);
+          write_pixel(x + 208, y + 151, triangle[y][x]);
         }
       }
 
     } else if (stringState == B_STRING) {
       for (int x = 0; x < 15; ++x) {
         for (int y = 0; y < 15; ++y) {
-          write_pixel(x + 210, y + 125, triangle[y][x]);
+          write_pixel(x + 208, y + 125, triangle[y][x]);
         }
       }
 
     } else if (stringState == G_STRING) {
       for (int x = 0; x < 15; ++x) {
         for (int y = 0; y < 15; ++y) {
-          write_pixel(x + 210, y + 98, triangle[y][x]);
+          write_pixel(x + 208, y + 98, triangle[y][x]);
         }
       }
     }
@@ -466,8 +477,23 @@ void drawArrow() {
   else if (stringState == E_STRING || stringState == A_STRING ||
            stringState == D_STRING) {
     if (stringState == E_STRING) {
+      for (int x = 0; x < 15; ++x) {
+        for (int y = 0; y < 15; ++y) {
+          write_pixel(x * -1 + 110, y + 151, triangle[y][x]);
+        }
+      }
     } else if (stringState == A_STRING) {
+      for (int x = 0; x < 15; ++x) {
+        for (int y = 0; y < 15; ++y) {
+          write_pixel(x * -1 + 110, y + 125, triangle[y][x]);
+        }
+      }
     } else if (stringState == D_STRING) {
+      for (int x = 0; x < 15; ++x) {
+        for (int y = 0; y < 15; ++y) {
+          write_pixel(x * -1 + 110, y + 98, triangle[y][x]);
+        }
+      }
     } else {
       // error
     }
