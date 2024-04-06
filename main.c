@@ -316,19 +316,41 @@ void interrupt_handler() {
     //   LEDptr->onoff = 0b1111111111;
     //   clearKeyEdgeCapture();
     // }
+
+    // Cycle forward through string states
     if (buttonptr->edgeCapture & 0b1) {
-      // Cycle forward through string states
       stringState++;
       if (stringState > 5) {
         stringState = 0;  // Wrap around to the first string state
       }
-    } else if (buttonptr->edgeCapture & 0b10) {
-      // Cycle backward through string states
+    }
+    // Cycle backward through string states
+    else if (buttonptr->edgeCapture & 0b10) {
       if (stringState == 0) {  // if stringState == 0, wrap around to 5
         stringState = 5;
       } else {
         stringState--;
       }
+    } else if (buttonptr->edgeCapture & 0b1000) {
+
+      write_phrase(30, 16, "Begin recording in...");
+      for (int i = 0; i < 25000000; i++) {
+      }
+      clear_character_buffer();
+      write_phrase(40, 16, "3");
+      for (int i = 0; i < 6250000; i++) {
+      }
+      clear_character_buffer();
+      write_phrase(40, 16, "2");
+      for (int i = 0; i < 6250000; i++) {
+      }
+      clear_character_buffer();
+      write_phrase(40, 16, "1");
+      for (int i = 0; i < 6250000; i++) {
+      }
+      clear_character_buffer();
+      write_phrase(38, 16, "Recording");
+      //frequencyOfString = recordAndPrint();
     }
 
     // assign expectedFrequencyForString the frequency expected for string
@@ -576,6 +598,121 @@ void drawNoteOnScale(float frequencyRecorded, float expectedFrequency) {
   draw_vertical_line(159 + difference_in_frequency, 10, 50,
                      colour);  // line is drawn starting at x = 159 (the
                                // middle of the scale) in red
+}
+
+/*****************************************************************************/
+/* FOURIER TRANSFORM */
+/*****************************************************************************/
+
+void rearrange(float data_re[], float data_im[], const int N) {
+  unsigned int target = 0;
+  for (unsigned int position = 0; position < N; position++) {
+    if (target > position) {
+      const float temp_re = data_re[target];
+      const float temp_im = data_im[target];
+      data_re[target] = data_re[position];
+      data_im[target] = data_im[position];
+      data_re[position] = temp_re;
+      data_im[position] = temp_im;
+    }
+    unsigned int mask = N;
+    while (target & (mask >>= 1)) target &= ~mask;
+    target |= mask;
+  }
+}
+
+void compute(float data_re[], float data_im[], const int N) {
+  const float pi = -3.14159265358979323846;
+
+  for (unsigned int step = 1; step < N; step <<= 1) {
+    const unsigned int jump = step << 1;
+    const float step_d = (float)step;
+    float twiddle_re = 1.0;
+    float twiddle_im = 0.0;
+    for (unsigned int group = 0; group < step; group++) {
+      for (unsigned int pair = group; pair < N; pair += jump) {
+        const unsigned int match = pair + step;
+        const float product_re =
+            twiddle_re * data_re[match] - twiddle_im * data_im[match];
+        const float product_im =
+            twiddle_im * data_re[match] + twiddle_re * data_im[match];
+        data_re[match] = data_re[pair] - product_re;
+        data_im[match] = data_im[pair] - product_im;
+        data_re[pair] += product_re;
+        data_im[pair] += product_im;
+      }
+
+      // we need the factors below for the next iteration
+      // if we don't iterate then don't compute
+      if (group + 1 == step) {
+        continue;
+      }
+
+      float angle = pi * ((float)group + 1) / step_d;
+      twiddle_re = cos(angle);
+      twiddle_im = sin(angle);
+    }
+  }
+}
+
+void fft(float data_re[], float data_im[], const int N) {
+  rearrange(data_re, data_im, N);
+  compute(data_re, data_im, N);
+}
+
+int recordAndPrint() {
+  volatile int *LEDS = (int *)0xff200000;
+  volatile int *audio_ptr = (int *)AUDIO_BASE;
+
+  int fifospace;
+  fifospace = *(audio_ptr + 1);  // read the audio port fifospace register
+
+  *LEDS = 0;
+
+  float re[NUMSAMPLES] = {0};
+  float im[NUMSAMPLES] = {0};
+
+  int samples[NUMSAMPLES] = {0};
+
+  // Clear FIFO Read and Write
+
+  *audio_ptr = 0x1100;
+
+  int i = 0;
+  while (i < NUMSAMPLES) {
+    fifospace = *(audio_ptr + 1);
+    if ((fifospace & 0x000000FF) > 0) {
+      samples[i] = *(audio_ptr + 2);
+      samples[i] = *(audio_ptr + 3);
+      i++;
+    }
+  }
+
+  printf("Done recording \n");
+  printf("Calculating \n");
+
+  // Compute RMS of signal:
+
+  for (int j = 0; j < NUMSAMPLES; j++) {
+    re[j] = 1.0 * samples[j];
+  }
+
+  fft(re, im, NUMSAMPLES);
+
+  int maxK = 0;
+  float maxAmp = 0;
+
+  for (int i = 0; i < NUMSAMPLES / 2; i++) {
+    if (re[i] > maxAmp && ((1.0) / NUMSAMPLES) * 1.0 * i * 8000.0 > 50 &&
+        ((1.0) / NUMSAMPLES) * 1.0 * i * 8000.0 < 600) {
+      maxK = i;
+      maxAmp = re[i];
+    }
+  }
+
+  float maxAng = ((1.0) / NUMSAMPLES) * 1.0 * maxK * 8000.0;
+  return maxAng;
+  // Clear buffer out of old samples
 }
 
 // Draws triangle to display to user which string is currently selected for
