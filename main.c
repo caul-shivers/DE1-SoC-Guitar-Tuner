@@ -20,7 +20,7 @@ enum GuitarString {
 extern const uint16_t guitar[162][85];
 extern const uint16_t triangle[15][15];
 enum GuitarString stringState =
-    E_STRING;  // Initialize string state to E_STRING
+    G_STRING;  // Initialize string state to E_STRING
 
 // Forward declaration of functions
 void setupKeys();
@@ -37,6 +37,7 @@ void drawScale();
 void drawArrow();
 void drawNoteOnScale(float frequencyRecorded, float expectedFrequency);
 void clear_character_buffer();
+void drawBox(int x1, int x2, int y1, int y2, short colour);
 
 /*****************************************************************************/
 /* MAIN */
@@ -44,8 +45,9 @@ void clear_character_buffer();
 
 int main(void) {
   /******************** SET UP ********************/
-  setupKeys();   // clears edge capture register and enables interrupts from all
-                 // buttons
+  setupKeys();  // clears edge capture register and enables interrupts from all
+                // buttons
+
   setupAudio();  // clears input and output FIFOs for both channels
   setupProcessorForInterrupts();  // enables the processor to be interrupted and
                                   // enables buttons to interrupt
@@ -303,6 +305,8 @@ void interrupt_handler() {
 
     printf("string state: %d\n", stringState);
     clearKeyEdgeCapture();
+    clearArrows();
+    drawArrow();
   }
 }
 
@@ -390,12 +394,62 @@ void drawScale() {
   }
 }
 
+void drawBox(int x1, int x2, int y1, int y2, short colour){
+    for (int x = x1; x < x2; ++x){
+    for (int y = y1; y < y2; ++y){
+      write_pixel(x, y, 0x0);
+    }
+  }
+};
+
+void clearArrows(){
+  //draws black box
+  drawBox(210, 240, 90, 200, 0x0);
+}
+
 // draws the arrow that shows what string is selected for tuning
 void drawArrow() {
-  for (int x = 0; x < 15; ++x) {
-    for (int y = 0; y < 15; ++y) {
-      write_pixel(x, y, triangle[y][x]);
+  if (stringState == HIGH_E_STRING || stringState == B_STRING ||
+      stringState == G_STRING) {
+    if (stringState == HIGH_E_STRING) {
+      for (int x = 0; x < 15; ++x) {
+        for (int y = 0; y < 15; ++y) {
+          write_pixel(x + 210, y + 151, triangle[y][x]);
+        }
+      }
+
+    } else if (stringState == B_STRING) {
+      for (int x = 0; x < 15; ++x) {
+        for (int y = 0; y < 15; ++y) {
+          write_pixel(x + 210, y + 125, triangle[y][x]);
+        }
+      }
+`
+    } else if (stringState == G_STRING) {
+            for (int x = 0; x < 15; ++x) {
+        for (int y = 0; y < 15; ++y) {
+          write_pixel(x + 210, y + 98, triangle[y][x]);
+        }
+      }
     }
+
+    else {
+      // error
+    }
+  }
+
+  // else if (stringState == E_STRING || stringState == A_STRING ||
+  //          stringState == D_STRING) {
+  //   if (stringState == E_STRING) {
+  //   } else if (stringState == A_STRING) {
+  //   } else if (stringState == D_STRING)
+  //     else {
+  //       // error
+  //     }
+  // }
+
+  else {
+    printf("Error: stringState is not one of the strings");
   }
 }
 
