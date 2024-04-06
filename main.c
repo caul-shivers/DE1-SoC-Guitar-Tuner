@@ -1,14 +1,30 @@
+#include <math.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 
 #define KEYS_BASE 0xFF200050
 #define AUDIO_BASE 0xFF203040
 #define LED_BASE 0xFF200000
 
+#define PI 3.141592653589
+#define NUMSAMPLES 8192
+#define PADDING 5
+
+#define E4 329.63
+#define B3 246.94
+#define G3 196.00
+#define D3 146.83
+#define A2 110.00
+#define E2 82.41
+
 /*****************************************************************************/
 /* GLOBALS */
 /*****************************************************************************/  // Define states for different guitar strings
+float frequencyOfString = -1;
+float expectedFrequencyForString = E2;
+
 enum GuitarString {
   E_STRING,
   A_STRING,
@@ -17,10 +33,12 @@ enum GuitarString {
   B_STRING,
   HIGH_E_STRING
 };
-extern const uint16_t guitar[162][85];
-extern const uint16_t triangle[15][15];
 enum GuitarString stringState =
     G_STRING;  // Initialize string state to E_STRING
+
+// Forward declaration of guitar and triangle (arrow) image arrays
+extern const uint16_t guitar[162][85];
+extern const uint16_t triangle[15][15];
 
 // Forward declaration of functions
 void setupKeys();
@@ -38,6 +56,13 @@ void drawArrow();
 void drawNoteOnScale(float frequencyRecorded, float expectedFrequency);
 void clear_character_buffer();
 void drawBox(int x1, int x2, int y1, int y2, short colour);
+void clearArrows();
+
+// Forward declaration of Fourier Transform functions
+void rearrange(float data_re[], float data_im[], const int N);
+void compute(float data_re[], float data_im[], const int N);
+void fft(float data_re[], float data_im[], const int N);
+int recordAndPrint();
 
 /*****************************************************************************/
 /* MAIN */
@@ -394,16 +419,16 @@ void drawScale() {
   }
 }
 
-void drawBox(int x1, int x2, int y1, int y2, short colour){
-    for (int x = x1; x < x2; ++x){
-    for (int y = y1; y < y2; ++y){
+void drawBox(int x1, int x2, int y1, int y2, short colour) {
+  for (int x = x1; x < x2; ++x) {
+    for (int y = y1; y < y2; ++y) {
       write_pixel(x, y, 0x0);
     }
   }
 };
 
-void clearArrows(){
-  //draws black box
+void clearArrows() {
+  // draws black box
   drawBox(210, 240, 90, 200, 0x0);
 }
 
@@ -424,9 +449,9 @@ void drawArrow() {
           write_pixel(x + 210, y + 125, triangle[y][x]);
         }
       }
-`
+
     } else if (stringState == G_STRING) {
-            for (int x = 0; x < 15; ++x) {
+      for (int x = 0; x < 15; ++x) {
         for (int y = 0; y < 15; ++y) {
           write_pixel(x + 210, y + 98, triangle[y][x]);
         }
@@ -438,15 +463,15 @@ void drawArrow() {
     }
   }
 
-  // else if (stringState == E_STRING || stringState == A_STRING ||
-  //          stringState == D_STRING) {
-  //   if (stringState == E_STRING) {
-  //   } else if (stringState == A_STRING) {
-  //   } else if (stringState == D_STRING)
-  //     else {
-  //       // error
-  //     }
-  // }
+  else if (stringState == E_STRING || stringState == A_STRING ||
+           stringState == D_STRING) {
+    if (stringState == E_STRING) {
+    } else if (stringState == A_STRING) {
+    } else if (stringState == D_STRING) {
+    } else {
+      // error
+    }
+  }
 
   else {
     printf("Error: stringState is not one of the strings");
