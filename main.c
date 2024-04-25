@@ -10,7 +10,7 @@
 #define LED_BASE 0xFF200000
 
 #define PI 3.141592653589
-#define NUMSAMPLES 8192
+#define NUMSAMPLES 16384
 #define PADDING 5
 
 #define E4 329.63
@@ -91,37 +91,8 @@ int main(void) {
   drawScale();
   drawArrow();
 
-  drawNoteOnScale(50.0, 50.0);
-
-beforeWhileLoop:
-
-  while (1/*!areWeTuning*/) {
-    // LEDptr->onoff = *((volatile unsigned long int*) (0xFF200040));
+  while (1) {
   }
-
-  // exit from while loop to here if we are tuning by pressing pushbutton 3
-
-  // write_phrase(30, 16, "Begin recording in...");
-  // for (int i = 0; i < 25000000; i++) {
-  // }
-  // clear_character_buffer();
-  // write_phrase(40, 16, "3");
-  // for (int i = 0; i < 6250000; i++) {
-  // }
-  // clear_character_buffer();
-  // write_phrase(40, 16, "2");
-  // for (int i = 0; i < 6250000; i++) {
-  // }
-  // clear_character_buffer();
-  // write_phrase(40, 16, "1");
-  // for (int i = 0; i < 6250000; i++) {
-  // }
-  // clear_character_buffer();
-  // write_phrase(36, 16, "Recording");
-
-  // areWeTuning = false;
-
-  // goto beforeWhileLoop;
 
   return 0;
 }
@@ -182,16 +153,6 @@ void setupAudio() {
       0b1100;  // bit 2 clears read FIFOs and bit 3 clears write FIFOs
   audioptr->control = 0x0;  // resume
 }
-
-/*****************************************************************************/
-/* LEDS */
-/*****************************************************************************/
-
-struct LEDstruct {
-  volatile unsigned long int onoff;
-};
-
-struct LEDstruct *LEDptr = (struct LEDstruct *)LED_BASE;
 
 /*****************************************************************************/
 /* Macros for accessing the control registers. */
@@ -339,13 +300,6 @@ void the_exception() {
 
 void interrupt_handler() {
   if (__builtin_rdctl(4) == 0b10) {
-    // if (LEDptr->onoff == 0b1111111111) {
-    //   LEDptr->onoff = 0;
-    //   clearKeyEdgeCapture();
-    // } else {
-    //   LEDptr->onoff = 0b1111111111;
-    //   clearKeyEdgeCapture();
-    // }
 
     // Cycle forward through string states
     if (buttonptr->edgeCapture & 0b1) {
@@ -362,26 +316,14 @@ void interrupt_handler() {
         stringState--;
       }
     } else if (buttonptr->edgeCapture & 0b1000) {
-      // areWeTuning = !areWeTuning;
-      // printf("areWeTuning = %d\n", areWeTuning);
-      write_phrase(30, 16, "Begin recording in...");
-      for (int i = 0; i < 25000000; i++) {
-      }
-      clear_character_buffer();
-      write_phrase(40, 16, "3");
-      for (int i = 0; i < 6250000; i++) {
-      }
-      clear_character_buffer();
-      write_phrase(40, 16, "2");
-      for (int i = 0; i < 6250000; i++) {
-      }
-      clear_character_buffer();
-      write_phrase(40, 16, "1");
-      for (int i = 0; i < 6250000; i++) {
-      }
-      clear_character_buffer();
-      write_phrase(36, 16, "Recording");
+
       frequencyOfString = recordAndPrint();
+      // clear previous scale
+      drawBox(49, 269, 10, 50, 0x0);
+      drawScale();
+      drawNoteOnScale(frequencyOfString, expectedFrequencyForString);
+      printf("frequency of String: %f and expected frequency: %f\n",
+             frequencyOfString, expectedFrequencyForString);
     }
 
     // assign expectedFrequencyForString the frequency expected for string
@@ -484,7 +426,7 @@ void drawScale() {
 void drawBox(int x1, int x2, int y1, int y2, short colour) {
   for (int x = x1; x < x2; ++x) {
     for (int y = y1; y < y2; ++y) {
-      write_pixel(x, y, 0x0);
+      write_pixel(x, y, colour);
     }
   }
 };
@@ -695,6 +637,24 @@ int recordAndPrint() {
   volatile int *LEDS = (int *)0xff200000;
   volatile int *audio_ptr = (int *)AUDIO_BASE;
 
+  write_phrase(30, 16, "Begin recording in...");
+  for (int i = 0; i < 25000000; i++) {
+  }
+  clear_character_buffer();
+  write_phrase(40, 16, "3");
+  for (int i = 0; i < 12500000; i++) {
+  }
+  clear_character_buffer();
+  write_phrase(40, 16, "2");
+  for (int i = 0; i < 12500000; i++) {
+  }
+  clear_character_buffer();
+  write_phrase(40, 16, "1");
+  for (int i = 0; i < 12500000; i++) {
+  }
+  clear_character_buffer();
+  write_phrase(36, 16, "Recording");
+
   int fifospace;
   fifospace = *(audio_ptr + 1);  // read the audio port fifospace register
 
@@ -707,7 +667,7 @@ int recordAndPrint() {
 
   // Clear FIFO Read and Write
 
-  *audio_ptr = 0x1100;
+  setupAudio();
 
   int i = 0;
   while (i < NUMSAMPLES) {
@@ -719,8 +679,12 @@ int recordAndPrint() {
     }
   }
 
-  printf("Done recording \n");
-  printf("Calculating \n");
+  clear_character_buffer();
+  write_phrase(33, 16, "Done recording");
+  for (int i = 0; i < 25000000; ++i) {
+  }
+  clear_character_buffer();
+  write_phrase(35, 16, "Calculating");
 
   // Compute RMS of signal:
 
@@ -735,7 +699,7 @@ int recordAndPrint() {
 
   for (int i = 0; i < NUMSAMPLES / 2; i++) {
     if (re[i] > maxAmp && ((1.0) / NUMSAMPLES) * 1.0 * i * 8000.0 > 50 &&
-        ((1.0) / NUMSAMPLES) * 1.0 * i * 8000.0 < 600) {
+        ((1.0) / NUMSAMPLES) * 1.0 * i * 8000.0 < 380) {
       maxK = i;
       maxAmp = re[i];
     }
