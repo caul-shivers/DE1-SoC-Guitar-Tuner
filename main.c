@@ -1,4 +1,5 @@
 #include <math.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -24,6 +25,8 @@
 /*****************************************************************************/  // Define states for different guitar strings
 float frequencyOfString = -1;
 float expectedFrequencyForString = D3;
+bool areWeTuning = false;  // If true, exit empty while loop in main and record
+                           // and do fourier transform
 
 enum GuitarString {
   D_STRING,
@@ -53,6 +56,7 @@ void write_pixel(int x, int y, short colour);
 void draw_vertical_line(int x, int higherYValue, int lowerYValue, short colour);
 void clear_screen();
 void write_char(int x, int y, char c);
+void write_phrase(int x, int y, char *phrase);
 void drawGuitar();
 void drawScale();
 void drawArrow();
@@ -89,9 +93,35 @@ int main(void) {
 
   drawNoteOnScale(50.0, 50.0);
 
-  while (1) {
+beforeWhileLoop:
+
+  while (1/*!areWeTuning*/) {
     // LEDptr->onoff = *((volatile unsigned long int*) (0xFF200040));
   }
+
+  // exit from while loop to here if we are tuning by pressing pushbutton 3
+
+  // write_phrase(30, 16, "Begin recording in...");
+  // for (int i = 0; i < 25000000; i++) {
+  // }
+  // clear_character_buffer();
+  // write_phrase(40, 16, "3");
+  // for (int i = 0; i < 6250000; i++) {
+  // }
+  // clear_character_buffer();
+  // write_phrase(40, 16, "2");
+  // for (int i = 0; i < 6250000; i++) {
+  // }
+  // clear_character_buffer();
+  // write_phrase(40, 16, "1");
+  // for (int i = 0; i < 6250000; i++) {
+  // }
+  // clear_character_buffer();
+  // write_phrase(36, 16, "Recording");
+
+  // areWeTuning = false;
+
+  // goto beforeWhileLoop;
 
   return 0;
 }
@@ -332,7 +362,8 @@ void interrupt_handler() {
         stringState--;
       }
     } else if (buttonptr->edgeCapture & 0b1000) {
-
+      // areWeTuning = !areWeTuning;
+      // printf("areWeTuning = %d\n", areWeTuning);
       write_phrase(30, 16, "Begin recording in...");
       for (int i = 0; i < 25000000; i++) {
       }
@@ -349,8 +380,8 @@ void interrupt_handler() {
       for (int i = 0; i < 6250000; i++) {
       }
       clear_character_buffer();
-      write_phrase(38, 16, "Recording");
-      //frequencyOfString = recordAndPrint();
+      write_phrase(36, 16, "Recording");
+      frequencyOfString = recordAndPrint();
     }
 
     // assign expectedFrequencyForString the frequency expected for string
@@ -359,10 +390,10 @@ void interrupt_handler() {
 
     printf("expected frequency for string state: %d: %f\n", stringState,
            expectedFrequencyForString);
-
-    clearKeyEdgeCapture();
     clearArrows();
     drawArrow();
+
+    clearKeyEdgeCapture();
   }
 }
 
