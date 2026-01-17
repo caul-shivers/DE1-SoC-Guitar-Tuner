@@ -91,8 +91,33 @@ int main(void) {
   drawScale();
   drawArrow();
 
-  while (1) {
+  while (/*!areWeTuning*/1) {
+    // LEDptr->onoff = *((volatile unsigned long int*) (0xFF200040));
   }
+
+  // exit from while loop to here if we are tuning by pressing pushbutton 3
+
+  // write_phrase(30, 16, "Begin recording in...");
+  // for (int i = 0; i < 25000000; i++) {
+  // }
+  // clear_character_buffer();
+  // write_phrase(40, 16, "3");
+  // for (int i = 0; i < 6250000; i++) {
+  // }
+  // clear_character_buffer();
+  // write_phrase(40, 16, "2");
+  // for (int i = 0; i < 6250000; i++) {
+  // }
+  // clear_character_buffer();
+  // write_phrase(40, 16, "1");
+  // for (int i = 0; i < 6250000; i++) {
+  // }
+  // clear_character_buffer();
+  // write_phrase(36, 16, "Recording");
+
+  // areWeTuning = false;
+
+  // goto beforeWhileLoop;
 
   return 0;
 }
@@ -153,6 +178,16 @@ void setupAudio() {
       0b1100;  // bit 2 clears read FIFOs and bit 3 clears write FIFOs
   audioptr->control = 0x0;  // resume
 }
+
+/*****************************************************************************/
+/* LEDS */
+/*****************************************************************************/
+
+struct LEDstruct {
+  volatile unsigned long int onoff;
+};
+
+struct LEDstruct *LEDptr = (struct LEDstruct *)LED_BASE;
 
 /*****************************************************************************/
 /* Macros for accessing the control registers. */
@@ -300,6 +335,13 @@ void the_exception() {
 
 void interrupt_handler() {
   if (__builtin_rdctl(4) == 0b10) {
+    // if (LEDptr->onoff == 0b1111111111) {
+    //   LEDptr->onoff = 0;
+    //   clearKeyEdgeCapture();
+    // } else {
+    //   LEDptr->onoff = 0b1111111111;
+    //   clearKeyEdgeCapture();
+    // }
 
     // Cycle forward through string states
     if (buttonptr->edgeCapture & 0b1) {
@@ -316,14 +358,15 @@ void interrupt_handler() {
         stringState--;
       }
     } else if (buttonptr->edgeCapture & 0b1000) {
-
+      // areWeTuning = !areWeTuning;
+      // printf("areWeTuning = %d\n", areWeTuning);
+      
       frequencyOfString = recordAndPrint();
-      // clear previous scale
+      //clear previous scale
       drawBox(49, 269, 10, 50, 0x0);
       drawScale();
       drawNoteOnScale(frequencyOfString, expectedFrequencyForString);
-      printf("frequency of String: %f and expected frequency: %f\n",
-             frequencyOfString, expectedFrequencyForString);
+      printf("frequency of String: %f and expected frequency: %f\n", frequencyOfString, expectedFrequencyForString);
     }
 
     // assign expectedFrequencyForString the frequency expected for string
@@ -638,22 +681,22 @@ int recordAndPrint() {
   volatile int *audio_ptr = (int *)AUDIO_BASE;
 
   write_phrase(30, 16, "Begin recording in...");
-  for (int i = 0; i < 25000000; i++) {
-  }
-  clear_character_buffer();
-  write_phrase(40, 16, "3");
-  for (int i = 0; i < 12500000; i++) {
-  }
-  clear_character_buffer();
-  write_phrase(40, 16, "2");
-  for (int i = 0; i < 12500000; i++) {
-  }
-  clear_character_buffer();
-  write_phrase(40, 16, "1");
-  for (int i = 0; i < 12500000; i++) {
-  }
-  clear_character_buffer();
-  write_phrase(36, 16, "Recording");
+      for (int i = 0; i < 25000000; i++) {
+      }
+      clear_character_buffer();
+      write_phrase(40, 16, "3");
+      for (int i = 0; i < 12500000; i++) {
+      }
+      clear_character_buffer();
+      write_phrase(40, 16, "2");
+      for (int i = 0; i < 12500000; i++) {
+      }
+      clear_character_buffer();
+      write_phrase(40, 16, "1");
+      for (int i = 0; i < 12500000; i++) {
+      }
+      clear_character_buffer();
+      write_phrase(36, 16, "Recording");
 
   int fifospace;
   fifospace = *(audio_ptr + 1);  // read the audio port fifospace register
@@ -667,7 +710,7 @@ int recordAndPrint() {
 
   // Clear FIFO Read and Write
 
-  setupAudio();
+setupAudio();
 
   int i = 0;
   while (i < NUMSAMPLES) {
@@ -681,7 +724,8 @@ int recordAndPrint() {
 
   clear_character_buffer();
   write_phrase(33, 16, "Done recording");
-  for (int i = 0; i < 25000000; ++i) {
+  for (int i = 0; i < 25000000; ++i){
+
   }
   clear_character_buffer();
   write_phrase(35, 16, "Calculating");
